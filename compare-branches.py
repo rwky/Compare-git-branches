@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 import sys, subprocess, getopt
 
 gitLogCmd = ['git','log','--pretty=oneline','--no-merges']
-gitAuthorCmd = ['git', 'show', '-s', '--format=%an']
+gitAuthorCmd = ['git', 'show', '-s', '--format=(%an) %aD']
 
 branchAOnly  = False
 branchBOnly  = False
@@ -65,9 +65,10 @@ class Branch:
         for line in lines:
             self.addLogLine(line)
     
-    def doComparedBranchLog(self, comparedBranchName):
+    def doComparedBranchLog(self):
         cmd = gitLogCmd + [self.branchName]
-        cmd += ['^' + comparedBranchName]
+        if 'since' in globals():
+            cmd.append('--since="%s"' % since)
         # print 'Compared branch log: ' + str(cmd)
 
         log = subprocess.check_output(cmd );
@@ -101,7 +102,7 @@ class Branch:
                 cmd = gitAuthorCmd + [commitID]
                 commitAuthor = subprocess.check_output(cmd).rstrip()
 
-                print '  %s (%s) %s' % (commitID, commitAuthor, commitObj.getCommitSubject() )
+                print '  %s %s %s' % (commitID, commitAuthor, commitObj.getCommitSubject() )
 
         print
 
@@ -128,11 +129,13 @@ def usage():
                 List commits missing from branch b only
           -r
                 Print in reverse order (older (top) to newer (bottom) )
+          -t
+                How far back in time to go (passed to git log as --since) i.e. '1 month ago'
         '''
 
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "ha:b:BAr")
+    opts, args = getopt.getopt(sys.argv[1:], "ha:b:BArt:")
 except:
     usage()
     sys.exit()
@@ -152,6 +155,8 @@ for opt,arg in opts:
         branchBOnly = True
     if opt == '-r':
         reversedOrder = True
+    if opt == '-t':
+        since = arg
 
 
 if 'branchAName' not in globals() or 'branchBName' not in globals():
@@ -166,8 +171,8 @@ branchAObj = Branch(branchAName)
 branchBObj = Branch(branchBName)
 
 
-branchAObj.doComparedBranchLog(branchBName)
-branchBObj.doComparedBranchLog(branchAName)
+branchAObj.doComparedBranchLog()
+branchBObj.doComparedBranchLog()
 
 branchAObj.createMissingList(branchBObj.getPatchIdDict() )
 branchBObj.createMissingList(branchAObj.getPatchIdDict() )
